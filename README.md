@@ -50,6 +50,15 @@ Clicking **"Simulate Webhook Update"** on a pending transaction hits `POST /sett
 - Updates `Transaction.status` to `Success` or `Failed`
 - On success, increments `Account.balance`
 
+## Scalability & Future Improvements (Interview Follow-up)
+
+While this proof-of-concept demonstrates a decoupled asynchronous worker architecture, scaling this to millions of users in a live production environment would require a few additional architectural evolutions:
+
+    Microservice Split (CQRS): Currently, a single API service handles both saving schedules and fetching transaction ledgers. At enterprise scale, I would separate the "Make Recurring Deposit" service (Write path) from the "View Transactions" service (Read path), just as we discussed during the system design interview. This allows the read-heavy ledger API to scale independently from the write-heavy scheduling API.
+
+    Infrastructure Routing: In a fully managed AWS environment, I would explicitly provision an API Gateway and Load Balancer to handle traffic routing and rate limiting. For this MVP, I leveraged Render's built-in platform routing to handle load balancing automatically without burning setup time.
+
+    Database Efficiency Optimizations: I updated the table schemas from the initial whiteboard design to optimize database queries. Specifically, adding an indexed next_run_date timestamp allows the scheduler to execute a lightning-fast SELECT query rather than doing expensive string parsing on frequency rules (e.g., "Weekly") at runtime.
 ## Local Development
 
 ```bash

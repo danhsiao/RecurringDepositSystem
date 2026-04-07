@@ -1,0 +1,32 @@
+services:
+  # FastAPI Web Service
+  - type: web
+    name: recurring-deposit-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # Celery Background Worker
+  - type: worker
+    name: recurring-deposit-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
