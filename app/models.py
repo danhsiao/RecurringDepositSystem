@@ -45,6 +45,11 @@ class RecurringDeposit(Base):
     frequency: Mapped[FrequencyEnum] = mapped_column(SAEnum(FrequencyEnum), nullable=False)
     next_run_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     account: Mapped["Account"] = relationship("Account", back_populates="deposits")
     transactions: Mapped[list["Transaction"]] = relationship(

@@ -71,6 +71,7 @@ class DepositOut(BaseModel):
     frequency: FrequencyEnum
     next_run_date: datetime
     active: bool
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -137,14 +138,32 @@ def create_deposit(payload: DepositCreate, db: Session = Depends(get_db)):
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
+    # Uniqueness guard: block duplicate active schedules with same amount + frequency
+    duplicate = (
+        db.query(RecurringDeposit)
+        .filter(
+            RecurringDeposit.account_id == payload.account_id,
+            RecurringDeposit.amount == payload.amount,
+            RecurringDeposit.frequency == payload.frequency,
+            RecurringDeposit.active == True,
+        )
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail=f"An active {payload.frequency} deposit of ${payload.amount:,.2f} already exists for this account.",
+        )
+
+    now = datetime.now(timezone.utc)
     deposit = RecurringDeposit(
         id=str(uuid.uuid4()),
         account_id=payload.account_id,
         amount=payload.amount,
         frequency=payload.frequency,
-        # Schedule first run for right now so it's immediately eligible
-        next_run_date=datetime.now(timezone.utc),
+        next_run_date=now,
         active=True,
+        created_at=now,
     )
     db.add(deposit)
     db.commit()
@@ -157,18 +176,32 @@ def list_deposits(account_id: str, db: Session = Depends(get_db)):
     return (
         db.query(RecurringDeposit)
         .filter(RecurringDeposit.account_id == account_id)
-        .order_by(RecurringDeposit.active.desc())
+        .order_by(RecurringDeposit.created_at.asc())
         .all()
     )
 
 
 @app.delete("/deposits/{deposit_id}", status_code=204)
-def delete_deposit(deposit_id: str, db: Session = Depends(get_db)):
+def pause_deposit(deposit_id: str, db: Session = Depends(get_db)):
+    """Soft-delete: marks schedule as inactive but preserves transaction history."""
     deposit = db.get(RecurringDeposit, deposit_id)
     if not deposit:
         raise HTTPException(status_code=404, detail="Deposit not found")
     deposit.active = False
     db.commit()
+
+
+@app.patch("/deposits/{deposit_id}/activate", response_model=DepositOut)
+def unpause_deposit(deposit_id: str, db: Session = Depends(get_db)):
+    """Reactivates a paused schedule. Resets next_run_date to now so it's immediately eligible."""
+    deposit = db.get(RecurringDeposit, deposit_id)
+    if not deposit:
+        raise HTTPException(status_code=404, detail="Deposit not found")
+    deposit.active = True
+    deposit.next_run_date = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(deposit)
+    return deposit
 
 
 # ---------------------------------------------------------------------------
@@ -288,8 +321,8 @@ def seed_demo_data(db: Session = Depends(get_db)):
         return {"message": "Demo data already seeded.", "seeded": False}
 
     accounts = [
-        Account(id=str(uuid.uuid4()), user_id="demo_user", account_name="Brokerage Account", balance=10000.0),
-        Account(id=str(uuid.uuid4()), user_id="demo_user", account_name="Retirement (IRA)", balance=25000.0),
+        Account(id=str(uuid.uuid4()), user_id="demo_user", account_name="Brokerage Account", balance=0.0),
+        Account(id=str(uuid.uuid4()), user_id="demo_user", account_name="Retirement (IRA)", balance=0.0),
     ]
     for a in accounts:
         db.add(a)

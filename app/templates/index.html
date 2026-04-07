@@ -10,14 +10,7 @@
       theme: {
         extend: {
           colors: {
-            brand: {
-              50:  '#f5f3ff',
-              400: '#a78bfa',
-              500: '#8b5cf6',
-              600: '#7c3aed',
-              700: '#6d28d9',
-              900: '#1e0a3c',
-            },
+            brand: { 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed' },
           },
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
         },
@@ -28,139 +21,83 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     body { background: #07070f; }
+    .glow-blob { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; }
+    .glass        { background:rgba(255,255,255,0.04); border:1px solid rgba(139,92,246,0.18); backdrop-filter:blur(16px); }
+    .glass-strong { background:rgba(255,255,255,0.07); border:1px solid rgba(139,92,246,0.3);  backdrop-filter:blur(24px); }
+    .grad-text    { background:linear-gradient(135deg,#c4b5fd,#f0abfc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .btn-primary  { background:linear-gradient(135deg,#7c3aed,#a855f7); transition:opacity .2s,transform .1s; }
+    .btn-primary:hover  { opacity:.9; transform:translateY(-1px); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-ghost { background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); transition:background .2s; }
+    .btn-ghost:hover { background:rgba(139,92,246,0.22); }
+    .badge-pending { background:rgba(245,158,11,.15); color:#fbbf24; border:1px solid rgba(245,158,11,.3); }
+    .badge-success { background:rgba(16,185,129,.15);  color:#34d399; border:1px solid rgba(16,185,129,.3); }
+    .badge-failed  { background:rgba(239,68,68,.15);   color:#f87171; border:1px solid rgba(239,68,68,.3);  }
+    .trow { transition:background .15s; }
+    .trow:hover { background:rgba(139,92,246,0.06); }
+    .trow-sub { background:rgba(139,92,246,0.03); }
+    .trow-sub:hover { background:rgba(139,92,246,0.08); }
+    .inp { background:rgba(255,255,255,0.05); border:1px solid rgba(139,92,246,0.25); color:#fff; transition:border-color .2s; }
+    .inp:focus { outline:none; border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,0.15); }
+    .inp::placeholder { color:#4b5563; }
+    .inp option { background:#1a0533; color:#fff; }
 
-    /* Ambient purple glow blobs */
-    .glow-blob {
-      position: fixed; border-radius: 50%; filter: blur(120px);
-      pointer-events: none; z-index: 0;
-    }
+    /* Scrollable table body — activates after 5 rows (~320px) */
+    .table-scroll-wrap { max-height: 320px; overflow-y: auto; }
+    .table-scroll-wrap::-webkit-scrollbar { width:4px; }
+    .table-scroll-wrap::-webkit-scrollbar-track { background:transparent; }
+    .table-scroll-wrap::-webkit-scrollbar-thumb { background:rgba(139,92,246,0.4); border-radius:4px; }
 
-    /* Glass cards */
-    .glass {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(139,92,246,0.18);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-    .glass-strong {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(139,92,246,0.3);
-      backdrop-filter: blur(24px);
-    }
+    /* Sticky thead inside scrollable wrapper */
+    .sticky-thead { position:sticky; top:0; z-index:5; background:#0d0d18; }
 
-    /* Purple gradient text */
-    .grad-text {
-      background: linear-gradient(135deg, #c4b5fd, #f0abfc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* Gradient button */
-    .btn-primary {
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      transition: opacity .2s, transform .1s;
-    }
-    .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
-    .btn-primary:active { transform: translateY(0); }
-
-    .btn-ghost {
-      background: rgba(139,92,246,0.12);
-      border: 1px solid rgba(139,92,246,0.3);
-      transition: background .2s;
-    }
-    .btn-ghost:hover { background: rgba(139,92,246,0.22); }
-
-    /* Status badges */
-    .badge-pending  { background:rgba(245,158,11,.15); color:#fbbf24; border:1px solid rgba(245,158,11,.3); }
-    .badge-success  { background:rgba(16,185,129,.15); color:#34d399; border:1px solid rgba(16,185,129,.3); }
-    .badge-failed   { background:rgba(239,68,68,.15);  color:#f87171; border:1px solid rgba(239,68,68,.3);  }
-
-    /* Table rows */
-    .trow { transition: background .15s; }
-    .trow:hover { background: rgba(139,92,246,0.06); }
-
-    /* Input styling */
-    .inp {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(139,92,246,0.25);
-      color: #fff;
-      transition: border-color .2s;
-    }
-    .inp:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
-    .inp::placeholder { color: #4b5563; }
-    .inp option { background: #1a0533; color: #fff; }
-
-    /* Toast notifications */
+    /* Toast */
     #toast-container { position:fixed; top:1.5rem; right:1.5rem; z-index:999; display:flex; flex-direction:column; gap:.5rem; }
-    .toast {
-      padding: .85rem 1.2rem;
-      border-radius: .75rem;
-      font-size: .85rem;
-      font-weight: 500;
-      backdrop-filter: blur(16px);
-      animation: slideIn .25s ease-out;
-      max-width: 360px;
-      line-height: 1.4;
-    }
-    .toast-info    { background:rgba(139,92,246,.2);  border:1px solid rgba(139,92,246,.4); color:#c4b5fd; }
-    .toast-success { background:rgba(16,185,129,.2);  border:1px solid rgba(16,185,129,.4); color:#6ee7b7; }
-    .toast-error   { background:rgba(239,68,68,.2);   border:1px solid rgba(239,68,68,.4);  color:#fca5a5; }
-    .toast-warning { background:rgba(245,158,11,.2);  border:1px solid rgba(245,158,11,.4); color:#fcd34d; }
-    @keyframes slideIn { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }
+    .toast { padding:.85rem 1.2rem; border-radius:.75rem; font-size:.85rem; font-weight:500; backdrop-filter:blur(16px); animation:slideIn .25s ease-out; max-width:360px; line-height:1.4; }
+    .toast-info    { background:rgba(139,92,246,.2); border:1px solid rgba(139,92,246,.4); color:#c4b5fd; }
+    .toast-success { background:rgba(16,185,129,.2); border:1px solid rgba(16,185,129,.4); color:#6ee7b7; }
+    .toast-error   { background:rgba(239,68,68,.2);  border:1px solid rgba(239,68,68,.4);  color:#fca5a5; }
+    .toast-warning { background:rgba(245,158,11,.2); border:1px solid rgba(245,158,11,.4); color:#fcd34d; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
 
-    /* Notification bell badge */
+    /* Accordion chevron */
+    .chevron { transition:transform .2s; display:inline-block; }
+    .chevron.open { transform:rotate(180deg); }
+
     #notif-badge { display:none; }
-
-    /* Scrollbar */
     ::-webkit-scrollbar { width:4px; height:4px; }
     ::-webkit-scrollbar-track { background:transparent; }
     ::-webkit-scrollbar-thumb { background:rgba(139,92,246,.4); border-radius:4px; }
-
-    /* Loading skeleton shimmer */
-    .skeleton { background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(139,92,246,.08) 50%, rgba(255,255,255,.04) 75%); background-size:200% 100%; animation: shimmer 1.5s infinite; border-radius:.5rem; }
-    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
   </style>
 </head>
 <body class="font-sans text-white min-h-screen relative overflow-x-hidden">
 
-  <!-- Ambient glow blobs -->
   <div class="glow-blob w-[600px] h-[600px] bg-purple-700 opacity-[0.07] top-[-150px] left-[-150px]"></div>
-  <div class="glow-blob w-[500px] h-[500px] bg-fuchsia-600 opacity-[0.06] bottom-[0px] right-[-100px]"></div>
-
-  <!-- Toast container -->
+  <div class="glow-blob w-[500px] h-[500px] bg-fuchsia-600 opacity-[0.06] bottom-0 right-[-100px]"></div>
   <div id="toast-container"></div>
 
-  <!-- ===== HEADER ===== -->
+  <!-- HEADER -->
   <header class="relative z-10 border-b border-white/5 px-6 py-4">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Logo -->
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-full" style="background:linear-gradient(135deg,#7c3aed,#ec4899)"></div>
         <span class="text-lg font-semibold tracking-tight">alinea <span class="text-white/30 font-light text-sm ml-1">deposits</span></span>
       </div>
-
-      <!-- Account Selector + Notification Bell -->
       <div class="flex items-center gap-3">
-
-        <!-- Notification Bell -->
         <button onclick="toggleNotifPanel()" class="relative btn-ghost rounded-xl px-3 py-2 text-sm text-white/70 flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-9.33-4.981M9 17H4l1.405-1.405A2.032 2.032 0 006 14.158V11a6 6 0 0112 0v3.159c0 .538.214 1.055.595 1.436L20 17H15m-3 0v1a3 3 0 01-6 0v-1m6 0H9"/>
           </svg>
           <span id="notif-badge" class="absolute -top-1 -right-1 w-4 h-4 bg-fuchsia-500 rounded-full text-[10px] flex items-center justify-center font-bold">0</span>
         </button>
-
-        <!-- Account dropdown -->
-        <select id="account-select" onchange="onAccountChange()"
-          class="inp rounded-xl px-4 py-2 text-sm cursor-pointer min-w-[200px]">
+        <select id="account-select" onchange="onAccountChange()" class="inp rounded-xl px-4 py-2 text-sm cursor-pointer min-w-[200px]">
           <option value="">Loading accounts…</option>
         </select>
       </div>
     </div>
   </header>
 
-  <!-- ===== NOTIFICATION PANEL (slide-in) ===== -->
+  <!-- NOTIFICATION PANEL -->
   <div id="notif-panel" class="hidden fixed top-16 right-6 z-50 w-80 glass rounded-2xl p-4 shadow-2xl">
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm font-semibold text-white/80">Notifications</span>
@@ -171,19 +108,18 @@
     </div>
   </div>
 
-  <!-- ===== MAIN CONTENT ===== -->
+  <!-- MAIN -->
   <main class="relative z-10 max-w-7xl mx-auto px-6 py-8">
 
-    <!-- Top row: Balance card + Create Deposit -->
+    <!-- Top row -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
       <!-- Balance Card -->
       <div class="glass-strong rounded-3xl p-6 relative overflow-hidden lg:col-span-1">
-        <div class="absolute inset-0 opacity-20 pointer-events-none" style="background:radial-gradient(ellipse at top right, #7c3aed 0%, transparent 70%)"></div>
+        <div class="absolute inset-0 opacity-20 pointer-events-none" style="background:radial-gradient(ellipse at top right,#7c3aed 0%,transparent 70%)"></div>
         <p class="text-xs font-medium text-white/40 uppercase tracking-widest mb-2">Account Balance</p>
         <div id="balance-display" class="text-4xl font-bold grad-text mb-1">—</div>
         <p id="account-name-display" class="text-sm text-white/40 mt-1">Select an account</p>
-
         <div class="mt-6 pt-4 border-t border-white/5 flex gap-2">
           <button onclick="simulateCron()" id="cron-btn"
             class="btn-primary flex-1 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
@@ -202,8 +138,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="flex flex-col gap-1.5">
             <label class="text-xs text-white/40 font-medium">Amount (USD)</label>
-            <input id="dep-amount" type="number" min="1" step="0.01" placeholder="500.00"
-              class="inp rounded-xl px-4 py-2.5 text-sm" />
+            <input id="dep-amount" type="number" min="1" step="0.01" placeholder="500.00" class="inp rounded-xl px-4 py-2.5 text-sm" />
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-xs text-white/40 font-medium">Frequency</label>
@@ -224,8 +159,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Stats row -->
         <div class="mt-6 grid grid-cols-3 gap-4">
           <div class="glass rounded-2xl p-4 text-center">
             <p id="stat-active" class="text-2xl font-bold text-brand-400">—</p>
@@ -237,7 +170,7 @@
           </div>
           <div class="glass rounded-2xl p-4 text-center">
             <p id="stat-success" class="text-2xl font-bold text-emerald-400">—</p>
-            <p class="text-xs text-white/40 mt-1">Settled Txns</p>
+            <p class="text-xs text-white/40 mt-1">Resolved Txns</p>
           </div>
         </div>
       </div>
@@ -246,23 +179,29 @@
     <!-- Bottom row: Schedules + Transactions -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-      <!-- Schedules Table -->
+      <!-- ===== SCHEDULES TABLE ===== -->
       <div class="glass rounded-3xl overflow-hidden">
         <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
           <h2 class="text-sm font-semibold text-white/80">Deposit Schedules</h2>
           <button onclick="loadDeposits()" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">Refresh</button>
         </div>
-        <div class="overflow-x-auto">
+
+        <!-- Sticky header outside the scroll wrapper -->
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-[11px] text-white/30 uppercase tracking-wider border-b border-white/5 sticky-thead">
+              <th class="px-6 py-3 text-left font-medium">Amount</th>
+              <th class="px-6 py-3 text-left font-medium">Frequency</th>
+              <th class="px-6 py-3 text-left font-medium">Next Run</th>
+              <th class="px-6 py-3 text-left font-medium">Status</th>
+              <th class="px-6 py-3 text-left font-medium"></th>
+            </tr>
+          </thead>
+        </table>
+
+        <!-- Scrollable body — caps at 5 rows (~320px) -->
+        <div class="table-scroll-wrap">
           <table class="w-full text-sm">
-            <thead>
-              <tr class="text-[11px] text-white/30 uppercase tracking-wider border-b border-white/5">
-                <th class="px-6 py-3 text-left font-medium">Amount</th>
-                <th class="px-6 py-3 text-left font-medium">Frequency</th>
-                <th class="px-6 py-3 text-left font-medium">Next Run</th>
-                <th class="px-6 py-3 text-left font-medium">Status</th>
-                <th class="px-6 py-3 text-left font-medium"></th>
-              </tr>
-            </thead>
             <tbody id="schedules-body">
               <tr><td colspan="5" class="px-6 py-10 text-center text-white/20 text-sm">Select an account to view schedules</td></tr>
             </tbody>
@@ -270,38 +209,36 @@
         </div>
       </div>
 
-      <!-- Transactions Ledger -->
+      <!-- ===== TRANSACTION LEDGER (accordion) ===== -->
       <div class="glass rounded-3xl overflow-hidden">
         <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
           <h2 class="text-sm font-semibold text-white/80">Transaction Ledger</h2>
           <button onclick="loadTransactions()" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">Refresh</button>
         </div>
-        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-[11px] text-white/30 uppercase tracking-wider border-b border-white/5 sticky-thead">
+              <th class="px-6 py-3 text-left font-medium">Schedule</th>
+              <th class="px-6 py-3 text-left font-medium">Transactions</th>
+              <th class="px-6 py-3 text-left font-medium">Latest</th>
+              <th class="px-6 py-3 text-left font-medium w-8"></th>
+            </tr>
+          </thead>
+        </table>
+        <div class="table-scroll-wrap">
           <table class="w-full text-sm">
-            <thead>
-              <tr class="text-[11px] text-white/30 uppercase tracking-wider border-b border-white/5">
-                <th class="px-6 py-3 text-left font-medium">Amount</th>
-                <th class="px-6 py-3 text-left font-medium">Status</th>
-                <th class="px-6 py-3 text-left font-medium">Created</th>
-                <th class="px-6 py-3 text-left font-medium">Action</th>
-              </tr>
-            </thead>
             <tbody id="transactions-body">
               <tr><td colspan="4" class="px-6 py-10 text-center text-white/20 text-sm">No transactions yet</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
 
     <!-- Developer Panel -->
     <div class="mt-6 glass rounded-2xl px-6 py-4 border border-dashed border-white/10">
       <p class="text-[11px] text-white/30 uppercase tracking-widest font-medium mb-3">Developer Panel</p>
       <div class="flex flex-wrap gap-3 items-center">
-        <button onclick="seedData()" class="btn-ghost rounded-xl px-4 py-2 text-xs text-white/60 font-medium">
-          Seed Demo Accounts
-        </button>
         <button onclick="simulateCron()" class="btn-ghost rounded-xl px-4 py-2 text-xs text-white/60 font-medium flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
           Trigger Midnight CRON
@@ -312,53 +249,45 @@
           </svg>
           Refresh All
         </button>
-        <span class="text-white/10 text-xs ml-auto hidden sm:block">Workers hosted on Render · Queue on Upstash · DB on Supabase</span>
+        <span class="text-white/10 text-xs ml-auto hidden sm:block">Workers on Render · Queue on Upstash · DB on Supabase</span>
       </div>
     </div>
 
   </main>
 
-  <!-- ===== JAVASCRIPT ===== -->
   <script>
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
     let currentAccountId = null;
-    let notifPanelOpen   = false;
-    let pollingTimer     = null;
+    let allDeposits      = [];   // cached for accordion join
+    let openGroups       = new Set();  // tracks which accordion rows are expanded
 
     // -----------------------------------------------------------------------
     // Boot
     // -----------------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', async () => {
-      await seedData(true);   // silent seed on first load
+      await seedData(true);
       await loadAccounts();
-      startPolling();
-    });
-
-    function startPolling() {
-      // Poll transactions + notifications every 4 seconds to pick up worker results
-      pollingTimer = setInterval(() => {
+      setInterval(() => {
         if (currentAccountId) {
-          loadTransactions(true);   // silent=true → no toast
+          loadTransactions(true);
           loadBalance(true);
           loadNotifications(true);
         }
       }, 4000);
-    }
+    });
 
     // -----------------------------------------------------------------------
     // Seed
     // -----------------------------------------------------------------------
     async function seedData(silent = false) {
       try {
-        const res = await fetch('/seed', { method: 'POST' });
+        const res  = await fetch('/seed', { method: 'POST' });
         const data = await res.json();
-        if (!silent && data.seeded) showToast('Demo accounts created.', 'success');
+        if (!silent && data.seeded)  showToast('Demo accounts created.', 'success');
         if (!silent && !data.seeded) showToast('Demo data already exists.', 'info');
-      } catch (e) {
-        if (!silent) showToast('Seed failed: ' + e.message, 'error');
-      }
+      } catch (e) { if (!silent) showToast('Seed failed: ' + e.message, 'error'); }
     }
 
     // -----------------------------------------------------------------------
@@ -366,45 +295,29 @@
     // -----------------------------------------------------------------------
     async function loadAccounts() {
       try {
-        const res = await fetch('/accounts?user_id=demo_user');
-        const accounts = await res.json();
+        const accounts = await fetch('/accounts?user_id=demo_user').then(r => r.json());
         const sel = document.getElementById('account-select');
         sel.innerHTML = accounts.length
           ? accounts.map(a => `<option value="${a.id}">${a.account_name}</option>`).join('')
           : '<option value="">No accounts found</option>';
-
-        if (accounts.length) {
-          currentAccountId = accounts[0].id;
-          sel.value = currentAccountId;
-          await onAccountChange();
-        }
-      } catch (e) {
-        showToast('Failed to load accounts: ' + e.message, 'error');
-      }
+        if (accounts.length) { currentAccountId = accounts[0].id; sel.value = currentAccountId; await onAccountChange(); }
+      } catch (e) { showToast('Failed to load accounts: ' + e.message, 'error'); }
     }
 
     async function onAccountChange() {
-      const sel = document.getElementById('account-select');
-      currentAccountId = sel.value;
+      currentAccountId = document.getElementById('account-select').value;
       if (!currentAccountId) return;
-      await Promise.all([
-        loadBalance(),
-        loadDeposits(),
-        loadTransactions(),
-        loadNotifications(),
-      ]);
+      openGroups.clear();
+      await Promise.all([loadBalance(), loadDeposits(), loadTransactions(), loadNotifications()]);
     }
 
     async function loadBalance(silent = false) {
       if (!currentAccountId) return;
       try {
-        const res  = await fetch(`/accounts/${currentAccountId}`);
-        const data = await res.json();
-        document.getElementById('balance-display').textContent = formatCurrency(data.balance);
+        const data = await fetch(`/accounts/${currentAccountId}`).then(r => r.json());
+        document.getElementById('balance-display').textContent      = fmt$(data.balance);
         document.getElementById('account-name-display').textContent = data.account_name;
-      } catch (e) {
-        if (!silent) showToast('Failed to load balance.', 'error');
-      }
+      } catch (e) { if (!silent) showToast('Failed to load balance.', 'error'); }
     }
 
     // -----------------------------------------------------------------------
@@ -414,26 +327,21 @@
       if (!currentAccountId) return;
       const tbody = document.getElementById('schedules-body');
       try {
-        const res      = await fetch(`/accounts/${currentAccountId}/deposits`);
-        const deposits = await res.json();
+        allDeposits = await fetch(`/accounts/${currentAccountId}/deposits`).then(r => r.json());
+        document.getElementById('stat-active').textContent = allDeposits.filter(d => d.active).length;
 
-        // Update stat
-        document.getElementById('stat-active').textContent = deposits.filter(d => d.active).length;
-
-        if (!deposits.length) {
+        if (!allDeposits.length) {
           tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-white/20 text-sm">No schedules yet — create one above</td></tr>`;
           return;
         }
 
-        tbody.innerHTML = deposits.map(d => `
+        tbody.innerHTML = allDeposits.map(d => `
           <tr class="trow border-b border-white/5">
-            <td class="px-6 py-4 font-semibold">${formatCurrency(d.amount)}</td>
+            <td class="px-6 py-4 font-semibold">${fmt$(d.amount)}</td>
             <td class="px-6 py-4">
-              <span class="capitalize text-white/60 text-xs font-medium px-2 py-1 rounded-lg" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2)">
-                ${d.frequency}
-              </span>
+              <span class="capitalize text-white/60 text-xs font-medium px-2 py-1 rounded-lg" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2)">${d.frequency}</span>
             </td>
-            <td class="px-6 py-4 text-white/50 text-xs">${formatDate(d.next_run_date)}</td>
+            <td class="px-6 py-4 text-white/50 text-xs">${fmtDate(d.next_run_date)}</td>
             <td class="px-6 py-4">
               ${d.active
                 ? '<span class="badge-success text-xs px-2 py-1 rounded-lg font-medium">Active</span>'
@@ -441,8 +349,8 @@
             </td>
             <td class="px-6 py-4">
               ${d.active
-                ? `<button onclick="deactivateDeposit('${d.id}')" class="text-xs text-white/30 hover:text-red-400 transition-colors">Pause</button>`
-                : ''}
+                ? `<button onclick="pauseDeposit('${d.id}')" class="text-xs text-white/30 hover:text-yellow-400 transition-colors">Pause</button>`
+                : `<button onclick="unpauseDeposit('${d.id}')" class="text-xs text-brand-400 hover:text-brand-300 transition-colors">Unpause</button>`}
             </td>
           </tr>
         `).join('');
@@ -452,103 +360,145 @@
     }
 
     async function createDeposit() {
-      if (!currentAccountId) { showToast('Please select an account first.', 'warning'); return; }
+      if (!currentAccountId) { showToast('Select an account first.', 'warning'); return; }
       const amount = parseFloat(document.getElementById('dep-amount').value);
       const freq   = document.getElementById('dep-freq').value;
-
       if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'warning'); return; }
 
       const btn = document.getElementById('create-btn');
-      btn.disabled = true;
-      btn.textContent = 'Creating…';
-
+      btn.disabled = true; btn.textContent = 'Creating…';
       try {
         const res = await fetch('/deposits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ account_id: currentAccountId, amount, frequency: freq }),
         });
         if (!res.ok) throw new Error((await res.json()).detail);
         document.getElementById('dep-amount').value = '';
-        showToast(`${formatCurrency(amount)} ${freq} deposit scheduled.`, 'success');
+        showToast(`${fmt$(amount)} ${freq} deposit scheduled.`, 'success');
         await loadDeposits();
-      } catch (e) {
-        showToast('Failed to create deposit: ' + e.message, 'error');
-      } finally {
+      } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+      finally {
         btn.disabled = false;
         btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Create Schedule`;
       }
     }
 
-    async function deactivateDeposit(depositId) {
-      try {
-        await fetch(`/deposits/${depositId}`, { method: 'DELETE' });
-        showToast('Schedule paused.', 'info');
-        await loadDeposits();
-      } catch (e) {
-        showToast('Failed to pause schedule.', 'error');
-      }
+    async function pauseDeposit(id) {
+      await fetch(`/deposits/${id}`, { method: 'DELETE' });
+      showToast('Schedule paused.', 'info');
+      await loadDeposits();
+    }
+
+    async function unpauseDeposit(id) {
+      const res = await fetch(`/deposits/${id}/activate`, { method: 'PATCH' });
+      if (!res.ok) { showToast('Failed to unpause schedule.', 'error'); return; }
+      showToast('Schedule reactivated — next run set to now.', 'success');
+      await loadDeposits();
     }
 
     // -----------------------------------------------------------------------
-    // Transactions
+    // Transactions — accordion grouped by recurring deposit
     // -----------------------------------------------------------------------
     async function loadTransactions(silent = false) {
       if (!currentAccountId) return;
       const tbody = document.getElementById('transactions-body');
       try {
-        const res  = await fetch(`/accounts/${currentAccountId}/transactions`);
-        const txns = await res.json();
+        const txns = await fetch(`/accounts/${currentAccountId}/transactions`).then(r => r.json());
 
-        // Update stats
         document.getElementById('stat-pending').textContent = txns.filter(t => t.status === 'Pending').length;
-        document.getElementById('stat-success').textContent = txns.filter(t => t.status === 'Success').length;
+        document.getElementById('stat-success').textContent = txns.filter(t => t.status === 'Success' || t.status === 'Failed').length;
 
-        if (!txns.length) {
+        // Group transactions by recurring_deposit_id
+        const groups = {};
+        txns.forEach(t => {
+          if (!groups[t.recurring_deposit_id]) groups[t.recurring_deposit_id] = [];
+          groups[t.recurring_deposit_id].push(t);
+        });
+
+        const depositIds = Object.keys(groups);
+        if (!depositIds.length) {
           tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-white/20 text-sm">No transactions yet — run the CRON simulator</td></tr>`;
           return;
         }
 
-        tbody.innerHTML = txns.map(t => `
-          <tr class="trow border-b border-white/5">
-            <td class="px-6 py-4 font-semibold">${formatCurrency(t.amount)}</td>
-            <td class="px-6 py-4">
-              <span class="badge-${t.status.toLowerCase()} text-xs px-2 py-1 rounded-lg font-medium">${t.status}</span>
-            </td>
-            <td class="px-6 py-4 text-white/50 text-xs">${formatDate(t.created_at)}</td>
-            <td class="px-6 py-4">
-              ${t.status === 'Pending'
-                ? `<button onclick="simulateWebhook('${t.id}')"
-                     class="text-xs font-medium text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-1">
-                     <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse inline-block"></span>
-                     Settle
-                   </button>`
-                : '<span class="text-white/20 text-xs">—</span>'}
-            </td>
-          </tr>
-        `).join('');
+        // Build rows — one accordion header per deposit, sub-rows when expanded
+        tbody.innerHTML = depositIds.map(depId => {
+          const depTxns  = groups[depId];
+          const deposit  = allDeposits.find(d => d.id === depId);
+          const created  = deposit ? ` · created ${fmtDate(deposit.created_at)}` : '';
+          const label    = deposit ? `${fmt$(deposit.amount)} · ${capitalize(deposit.frequency)}${created}` : `ID …${depId.slice(-6)}`;
+          const latest   = depTxns[0];   // already sorted desc by created_at
+          const isOpen   = openGroups.has(depId);
+
+          const subRows = depTxns.map((t, i) => `
+            <tr class="trow-sub border-b border-white/[0.03] ${isOpen ? '' : 'hidden'}" data-group="${depId}">
+              <td class="pl-12 pr-4 py-3 text-white/40 text-xs">#${depTxns.length - i}</td>
+              <td class="px-4 py-3 font-medium text-sm">${fmt$(t.amount)}</td>
+              <td class="px-4 py-3">
+                <span class="badge-${t.status.toLowerCase()} text-xs px-2 py-1 rounded-lg font-medium">${t.status}</span>
+              </td>
+              <td class="px-4 py-3 text-white/40 text-xs">${fmtDate(t.created_at)}</td>
+              <td class="px-4 py-3">
+                ${t.status === 'Pending'
+                  ? `<button onclick="simulateWebhook('${t.id}')" class="text-xs font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1">
+                       <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse"></span>Settle
+                     </button>`
+                  : '<span class="text-white/20 text-xs">—</span>'}
+              </td>
+            </tr>
+          `).join('');
+
+          return `
+            <tr class="trow border-b border-white/5 cursor-pointer select-none" onclick="toggleGroup('${depId}')">
+              <td class="px-6 py-4 font-semibold text-sm">${label}</td>
+              <td class="px-6 py-4 text-white/50 text-xs">${depTxns.length} transaction${depTxns.length !== 1 ? 's' : ''}</td>
+              <td class="px-6 py-4">
+                <span class="badge-${latest.status.toLowerCase()} text-xs px-2 py-1 rounded-lg font-medium">${latest.status}</span>
+              </td>
+              <td class="px-6 py-4 text-white/30">
+                <span class="chevron ${isOpen ? 'open' : ''}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </span>
+              </td>
+            </tr>
+            ${subRows}
+          `;
+        }).join('');
       } catch (e) {
         if (!silent) tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-red-400 text-xs">Error loading transactions</td></tr>`;
       }
     }
 
+    function toggleGroup(depId) {
+      if (openGroups.has(depId)) {
+        openGroups.delete(depId);
+      } else {
+        openGroups.add(depId);
+      }
+      // Toggle visibility of sub-rows for this group
+      document.querySelectorAll(`tr[data-group="${depId}"]`).forEach(row => row.classList.toggle('hidden'));
+      // Rotate chevron
+      const header = [...document.querySelectorAll('tr')].find(r => r.onclick?.toString().includes(`'${depId}'`) && !r.dataset.group);
+      if (header) {
+        const chevron = header.querySelector('.chevron');
+        if (chevron) chevron.classList.toggle('open');
+      }
+    }
+
     // -----------------------------------------------------------------------
-    // Developer Actions
+    // Developer actions
     // -----------------------------------------------------------------------
     async function simulateCron() {
       const btn = document.getElementById('cron-btn');
-      btn.disabled = true;
-      btn.textContent = 'Running…';
-
+      btn.disabled = true; btn.textContent = 'Running…';
       try {
-        const res  = await fetch('/trigger-run', { method: 'POST' });
-        const data = await res.json();
+        const data = await fetch('/trigger-run', { method: 'POST' }).then(r => r.json());
         showToast(data.message, data.enqueued > 0 ? 'success' : 'info');
-        // Give workers a moment then refresh
         setTimeout(() => { loadDeposits(); loadTransactions(); }, 2500);
-      } catch (e) {
-        showToast('CRON trigger failed: ' + e.message, 'error');
-      } finally {
+      } catch (e) { showToast('CRON trigger failed: ' + e.message, 'error'); }
+      finally {
         btn.disabled = false;
         btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Simulate CRON`;
       }
@@ -559,11 +509,9 @@
         const res  = await fetch(`/settle/${transactionId}`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail);
-        showToast('Settlement task enqueued — refreshing in 3s…', 'info');
+        showToast('Settlement enqueued — refreshing in 3s…', 'info');
         setTimeout(() => { loadTransactions(); loadBalance(); loadNotifications(); }, 3000);
-      } catch (e) {
-        showToast('Settlement failed: ' + e.message, 'error');
-      }
+      } catch (e) { showToast('Settlement failed: ' + e.message, 'error'); }
     }
 
     async function refreshAll() {
@@ -578,100 +526,61 @@
     async function loadNotifications(silent = false) {
       if (!currentAccountId) return;
       try {
-        const res    = await fetch(`/notifications/${currentAccountId}`);
-        const notifs = await res.json();
+        const notifs = await fetch(`/notifications/${currentAccountId}`).then(r => r.json());
         const unread = notifs.filter(n => !n.read);
-
-        // Bell badge
-        const badge = document.getElementById('notif-badge');
-        if (unread.length > 0) {
-          badge.style.display = 'flex';
-          badge.textContent   = unread.length > 9 ? '9+' : unread.length;
-          if (!silent && unread.length > 0) {
-            // Show toast only for newly received unread notifications (on poll)
-            // We track this by storing previous count in a data attr
-            const prev = parseInt(badge.dataset.prev || '0');
-            if (unread.length > prev) {
-              unread.slice(prev).forEach(n => showToast('⚠ ' + n.message, 'warning'));
-            }
-            badge.dataset.prev = unread.length;
+        const badge  = document.getElementById('notif-badge');
+        badge.style.display = unread.length ? 'flex' : 'none';
+        if (unread.length) {
+          badge.textContent = unread.length > 9 ? '9+' : unread.length;
+          const prev = parseInt(badge.dataset.prev || '0');
+          if (!silent && unread.length > prev) {
+            unread.slice(prev).forEach(n => showToast('⚠ ' + n.message, 'warning'));
           }
-        } else {
-          badge.style.display = 'none';
-          badge.dataset.prev  = '0';
-        }
+          badge.dataset.prev = unread.length;
+        } else { badge.dataset.prev = '0'; }
 
-        // Notification panel
-        const list = document.getElementById('notif-list');
-        list.innerHTML = notifs.length
+        document.getElementById('notif-list').innerHTML = notifs.length
           ? notifs.map(n => `
               <div class="rounded-xl p-3 text-xs leading-relaxed ${n.read ? 'opacity-40' : ''}"
                    style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15)">
                 <div class="flex justify-between items-start gap-2">
                   <p class="text-white/80">${n.message}</p>
-                  ${!n.read
-                    ? `<button onclick="markRead('${n.id}')" class="text-brand-400 shrink-0 hover:text-brand-300 ml-2">✓</button>`
-                    : ''}
+                  ${!n.read ? `<button onclick="markRead('${n.id}')" class="text-brand-400 shrink-0 hover:text-brand-300 ml-2">✓</button>` : ''}
                 </div>
-                <p class="text-white/30 mt-1">${formatDate(n.created_at)}</p>
-              </div>
-            `).join('')
+                <p class="text-white/30 mt-1">${fmtDate(n.created_at)}</p>
+              </div>`).join('')
           : '<p class="text-xs text-white/30 text-center py-4">No notifications</p>';
-      } catch (e) {
-        /* silent */
-      }
+      } catch (e) { /* silent */ }
     }
 
-    async function markRead(notifId) {
-      await fetch(`/notifications/${notifId}/read`, { method: 'POST' });
-      await loadNotifications();
-    }
-
+    async function markRead(id) { await fetch(`/notifications/${id}/read`, { method:'POST' }); await loadNotifications(); }
     async function markAllRead() {
-      if (!currentAccountId) return;
-      const res    = await fetch(`/notifications/${currentAccountId}?unread_only=true`);
-      const notifs = await res.json();
+      const notifs = await fetch(`/notifications/${currentAccountId}?unread_only=true`).then(r => r.json());
       await Promise.all(notifs.map(n => fetch(`/notifications/${n.id}/read`, { method: 'POST' })));
       await loadNotifications();
     }
-
     function toggleNotifPanel() {
-      notifPanelOpen = !notifPanelOpen;
-      document.getElementById('notif-panel').classList.toggle('hidden', !notifPanelOpen);
+      const p = document.getElementById('notif-panel');
+      p.classList.toggle('hidden');
     }
-
-    // Close panel when clicking outside
     document.addEventListener('click', e => {
       const panel = document.getElementById('notif-panel');
-      if (!panel.contains(e.target) && !e.target.closest('button[onclick="toggleNotifPanel()"]')) {
-        notifPanelOpen = false;
-        panel.classList.add('hidden');
-      }
+      if (!panel.contains(e.target) && !e.target.closest('[onclick="toggleNotifPanel()"]')) panel.classList.add('hidden');
     });
-
-    // -----------------------------------------------------------------------
-    // Toast
-    // -----------------------------------------------------------------------
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toast-container');
-      const el        = document.createElement('div');
-      el.className    = `toast toast-${type}`;
-      el.textContent  = message;
-      container.appendChild(el);
-      setTimeout(() => el.remove(), 5000);
-    }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
-    function formatCurrency(val) {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
-    }
+    function fmt$(v) { return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(v); }
+    function fmtDate(iso) { return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+    function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-    function formatDate(iso) {
-      return new Date(iso).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      });
+    function showToast(message, type='info') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = message;
+      document.getElementById('toast-container').appendChild(el);
+      setTimeout(() => el.remove(), 5000);
     }
   </script>
 </body>
