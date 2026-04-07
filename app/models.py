@@ -73,3 +73,24 @@ class Transaction(Base):
     recurring_deposit: Mapped["RecurringDeposit"] = relationship(
         "RecurringDeposit", back_populates="transactions"
     )
+
+
+class Notification(Base):
+    """
+    In-app notification record created when a deposit settlement fails.
+    The frontend polls GET /notifications/{account_id} and displays unread alerts.
+
+    In production this would trigger an automated email via SendGrid/AWS SES
+    (see README for details).
+    """
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    account_id: Mapped[str] = mapped_column(String, ForeignKey("accounts.id"), nullable=False, index=True)
+    message: Mapped[str] = mapped_column(String, nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

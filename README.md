@@ -46,9 +46,12 @@ Clicking **"Simulate Midnight CRON"** hits `POST /trigger-run`. The API queries 
 
 ### 3. Settlement Flow (Simulates DriveWealth Webhook)
 Clicking **"Simulate Webhook Update"** on a pending transaction hits `POST /settle/{transaction_id}`. The API enqueues a settlement task. The worker:
-- Calls a mock DriveWealth settlement function (randomly succeeds/fails)
-- Updates `Transaction.status` to `Success` or `Failed`
-- On success, increments `Account.balance`
+- Calls a mock DriveWealth settlement function (randomly succeeds/fails at 80/20)
+- **On success:** updates `Transaction.status` to `Success` and increments `Account.balance`
+- **On failure:** updates `Transaction.status` to `Failed`, sets `RecurringDeposit.active = False` to pause the schedule, and creates a `Notification` record for the customer
+
+### Customer Notifications
+Failed settlements create an in-app `Notification` record that the frontend polls and displays as a banner alert. **In production, this would additionally trigger an automated transactional email** via SendGrid or AWS SES — e.g. *"Your $500 recurring deposit failed. Please update your payment method."* The DB notification record serves as the audit trail regardless of whether the email was delivered.
 
 ## Scalability & Future Improvements (Interview Follow-up)
 
