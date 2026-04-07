@@ -138,21 +138,32 @@ def create_deposit(payload: DepositCreate, db: Session = Depends(get_db)):
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    # Uniqueness guard: block duplicate active schedules with same amount + frequency
-    duplicate = (
+    # Check for any existing schedule with the same amount + frequency (active or paused)
+    existing = (
         db.query(RecurringDeposit)
         .filter(
             RecurringDeposit.account_id == payload.account_id,
             RecurringDeposit.amount == payload.amount,
             RecurringDeposit.frequency == payload.frequency,
-            RecurringDeposit.active == True,
         )
         .first()
     )
-    if duplicate:
+    if existing and existing.active:
         raise HTTPException(
             status_code=409,
-            detail=f"An active {payload.frequency} deposit of ${payload.amount:,.2f} already exists for this account.",
+            detail={
+                "type": "active_duplicate",
+                "message": f"An active {payload.frequency} deposit of ${float(payload.amount):,.2f} already exists.",
+            },
+        )
+    if existing and not existing.active:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "type": "paused_duplicate",
+                "message": f"A paused {payload.frequency} deposit of ${float(payload.amount):,.2f} already exists.",
+                "deposit_id": existing.id,
+            },
         )
 
     now = datetime.now(timezone.utc)

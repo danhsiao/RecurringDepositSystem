@@ -97,6 +97,31 @@
     </div>
   </header>
 
+  <!-- UNPAUSE MODAL -->
+  <div id="unpause-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="relative glass-strong rounded-3xl p-8 w-full max-w-md shadow-2xl">
+      <div class="w-10 h-10 rounded-2xl flex items-center justify-center mb-5"
+           style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3)">
+        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold mb-2">Schedule Already Exists</h3>
+      <p id="modal-message" class="text-sm text-white/50 mb-6 leading-relaxed"></p>
+      <div class="flex gap-3">
+        <button onclick="closeModal()"
+          class="flex-1 btn-ghost rounded-xl py-2.5 text-sm font-medium text-white/60">
+          Cancel
+        </button>
+        <button id="modal-unpause-btn" onclick="modalUnpause()"
+          class="flex-1 btn-primary rounded-xl py-2.5 text-sm font-semibold">
+          Unpause Schedule
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- NOTIFICATION PANEL -->
   <div id="notif-panel" class="hidden fixed top-16 right-6 z-50 w-80 glass rounded-2xl p-4 shadow-2xl">
     <div class="flex items-center justify-between mb-3">
@@ -359,6 +384,9 @@
       }
     }
 
+    // Tracks deposit ID to unpause if the modal confirm button is clicked
+    let _pendingUnpauseId = null;
+
     async function createDeposit() {
       if (!currentAccountId) { showToast('Select an account first.', 'warning'); return; }
       const amount = parseFloat(document.getElementById('dep-amount').value);
@@ -368,10 +396,31 @@
       const btn = document.getElementById('create-btn');
       btn.disabled = true; btn.textContent = 'Creating…';
       try {
-        const res = await fetch('/deposits', {
+        const res  = await fetch('/deposits', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ account_id: currentAccountId, amount, frequency: freq }),
         });
+
+        if (res.status === 409) {
+          const data = await res.json();
+          const detail = data.detail;
+          if (detail.type === 'paused_duplicate') {
+            // Show modal offering to unpause the existing paused schedule
+            _pendingUnpauseId = detail.deposit_id;
+            document.getElementById('modal-message').textContent =
+              `${detail.message} Would you like to unpause it instead of creating a new one?`;
+            document.getElementById('modal-unpause-btn').classList.remove('hidden');
+            document.getElementById('unpause-modal').classList.remove('hidden');
+          } else {
+            // Active duplicate — just inform, no action needed
+            document.getElementById('modal-message').textContent =
+              `${detail.message} Pause or modify the existing schedule first.`;
+            document.getElementById('modal-unpause-btn').classList.add('hidden');
+            document.getElementById('unpause-modal').classList.remove('hidden');
+          }
+          return;
+        }
+
         if (!res.ok) throw new Error((await res.json()).detail);
         document.getElementById('dep-amount').value = '';
         showToast(`${fmt$(amount)} ${freq} deposit scheduled.`, 'success');
@@ -381,6 +430,17 @@
         btn.disabled = false;
         btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Create Schedule`;
       }
+    }
+
+    function closeModal() {
+      document.getElementById('unpause-modal').classList.add('hidden');
+      _pendingUnpauseId = null;
+    }
+
+    async function modalUnpause() {
+      if (!_pendingUnpauseId) return;
+      await unpauseDeposit(_pendingUnpauseId);
+      closeModal();
     }
 
     async function pauseDeposit(id) {

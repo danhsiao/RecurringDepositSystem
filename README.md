@@ -71,9 +71,12 @@ A proof-of-concept Fintech application demonstrating a distributed, event-driven
 User fills form → POST /deposits
        │
        ├─ Validate: account exists?
-       ├─ Validate: no duplicate active schedule (same amount + frequency)?
+       ├─ Check for existing schedule with same amount + frequency:
+       │       ├─ active=true  → 409 "Active Duplicate" → UI shows modal (dismiss only)
+       │       └─ active=false → 409 "Paused Duplicate" → UI shows modal with [Unpause] button
+       │                              └─ User clicks Unpause → PATCH /deposits/{id}/activate
        │
-       └─ INSERT recurring_deposits (active=true, next_run_date=now)
+       └─ (no duplicate) INSERT recurring_deposits (active=true, next_run_date=now)
               └─ Return schedule to UI
 ```
 
@@ -101,7 +104,11 @@ User clicks "Simulate CRON" → POST /trigger-run
                             └─ UPDATE recurring_deposits.next_run_date += frequency interval
 ```
 
-**Why the idempotency key?** If the worker crashes after inserting the transaction but before acknowledging the message, Redis will re-deliver the task. The `UNIQUE` constraint on `idempotency_key` means the retry hits a duplicate error and skips safely — no double-charging.
+**What is the idempotency key?** It is `"{recurring_deposit_id}:{next_run_date}"` — for example `"abc-123:2024-04-07T17:00:00+00:00"`. It is **not** just the deposit ID, because the same deposit ID is reused on every cycle. Including the specific `next_run_date` makes the key unique per deposit per run:
+- Same cycle retried → same key → `UNIQUE` constraint fires → skipped safely
+- Next cycle runs → different `next_run_date` → different key → new transaction allowed
+
+**Why the idempotency key matters:** If the worker crashes after inserting the transaction but before acknowledging the Redis message, the broker re-delivers the task. The constraint catches the retry and skips it cleanly — no double-charging.
 
 **Why enqueue instead of processing inline?** The API returns immediately to the UI. Workers process all deposits in parallel. If you have 10,000 due deposits, the API doesn't block for 10,000 sequential DB writes — it just pushes 10,000 messages and returns.
 
@@ -129,8 +136,6 @@ User clicks "Settle" on a Pending transaction → POST /settle/{transaction_id}
                                  ├─ UPDATE recurring_deposits.active = False  ← pauses schedule
                                  └─ INSERT notifications (message, account_id, read=false)
 ```
-
-**Why two phases (Pending → Success/Failed)?** This mirrors how real brokerage APIs work. DriveWealth doesn't settle instantly — they accept the instruction (Pending), process it overnight, then POST a webhook with the result. Our "Simulate Webhook" button replays that async callback.
 
 **Why pause the schedule on failure?** A failed settlement usually means something is wrong — insufficient funds, a compliance hold, an expired bank link. Auto-retrying would likely fail again and could violate regulations. The correct pattern is to pause, notify the user, and require manual reactivation.
 
@@ -258,11 +263,6 @@ celery -A app.celery_app worker --loglevel=info
 ```
 
 Open `http://localhost:8000` in your browser.
-
-> **Note for Supabase:** If you added `created_at` to an existing `recurring_deposits` table, run this once in the Supabase SQL editor:
-> ```sql
-> ALTER TABLE recurring_deposits ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-> ```
 
 ---
 
