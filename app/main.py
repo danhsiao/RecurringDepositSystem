@@ -2,8 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,8 @@ from app.tasks import process_deposit, settle_transaction
 
 app = FastAPI(title="Recurring Deposit System")
 
+templates = Jinja2Templates(directory="app/templates")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,6 +32,11 @@ app.add_middleware(
 @app.on_event("startup")
 def create_tables():
     Base.metadata.create_all(bind=engine)
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 # ---------------------------------------------------------------------------
