@@ -97,7 +97,7 @@ User clicks "Simulate CRON" → POST /trigger-run
                      │         [task pushed to Redis queue]
                      │
                      └─ Worker picks up task:
-                            ├─ Build idempotency_key = "{deposit_id}:{next_run_date}"
+                            ├─ Build idempotency_key = "{recurring_deposit_id}:{next_run_date}"
                             ├─ Check: transaction with this key already exists? → skip (safe retry)
                             ├─ Call mock DriveWealth initiate_deposit()
                             ├─ INSERT transactions (status=Pending)
@@ -182,7 +182,7 @@ transactions
 ├── amount           numeric(12,2)
 ├── status           enum           Pending | Success | Failed
 ├── created_at       timestamptz
-└── idempotency_key  varchar        UNIQUE — "{deposit_id}:{next_run_date}"
+└── idempotency_key  varchar        UNIQUE — "{recurring_deposit_id}:{next_run_date}"
 
 notifications
 ├── id               varchar        PK
@@ -225,21 +225,123 @@ One account has many schedules. Each schedule generates one transaction per CRON
 
 ---
 
-## Scalability & Future Improvements
+## Scaling to Production
 
-### Microservice Split (CQRS)
-Currently a single FastAPI service handles both writes (create schedule, enqueue tasks) and reads (fetch ledger, balance). At scale, these would split into separate services:
-- **Write service** — accepts new schedules, enqueues CRON tasks. Optimized for throughput.
-- **Read service** — serves the ledger and balance APIs. Optimized for low-latency reads, potentially backed by a read replica.
+This POC maps directly onto a production AWS architecture. Every component has a 1:1 equivalent — the *pattern* is identical, only the infrastructure provider changes.
 
-### Infrastructure Routing
-In a production AWS environment, an **API Gateway + Load Balancer** would sit in front of the web service for rate limiting, auth, and traffic routing. For this POC, Render's built-in platform routing handles this automatically.
+### Celery vs Lambda — What's the Difference?
 
-### Worker Scaling
-Celery workers are stateless — you can horizontally scale by increasing the `--concurrency` flag or spinning up more worker instances. Each worker independently dequeues from Redis, so there's no coordination overhead.
+| | Celery (this POC) | AWS Lambda (production) |
+|---|---|---|
+| **Execution model** | Long-running process, always on | Spins up per event, terminates after |
+| **Idle cost** | Paying for compute 24/7 even when queue is empty | Pay only per invocation (first 1M/month free) |
+| **Cold start** | None — always warm | ~100ms–1s on first invocation |
+| **Max run time** | Unlimited | 15 minutes hard cap |
+| **Scaling** | Manual — spin up more worker processes | Automatic — AWS spawns one Lambda per SQS message |
+| **Ops burden** | You manage the process, restarts, crashes | Fully managed by AWS |
 
-### Email Notifications
-The `Notification` DB record is the hook point for a real email integration. In production, the worker would call SendGrid or AWS SES at the same point it writes the notification row, so the email and the audit record are always in sync.
+For a deposit that takes ~500ms to settle, Lambda is dramatically cheaper at scale. Celery is the right choice for this POC because it requires zero cloud configuration.
+
+**Does Celery ever stop?** No. A Celery worker is an always-on process. It connects to Redis on startup and sits in a continuous listen loop — executing tasks when messages arrive, idle when the queue is empty. It only stops if the process is killed or the server goes down.
+
+---
+
+| | This POC | Production |
+|---|---|---|
+| **Trigger** | Human clicks "Simulate CRON" button | AWS EventBridge rule: `cron(0 0 * * ? *)` |
+| **What it calls** | `POST /trigger-run` on FastAPI | An "Initiation Lambda" directly |
+| **Infrastructure** | None — manual | Fully managed, serverless scheduler |
+
+AWS EventBridge *is* the CRON. You define a cron expression and it fires your Lambda at midnight with no server to manage or worry about missing a run. 
+---
+
+### POC → Production Migration Map
+
+```
+POC (Render / Upstash / Supabase)        Production (AWS)
+──────────────────────────────────────   ──────────────────────────────────────
+"Simulate CRON" button              →    AWS EventBridge  (cron: 0 0 * * ? *)
+                                                  │
+FastAPI  POST /trigger-run          →    Initiation Lambda
+         (queries DB, enqueues)               (queries RDS, pushes to SQS)
+                                                  │
+Upstash Redis  (task broker)        →    AWS SQS  (one message per deposit)
+                                                  │
+Celery Worker  (always-on process)  →    Processing Lambda  (auto-scales 1:1
+         (polls Redis, executes)              with queue depth, serverless)
+                                                  │
+Supabase PostgreSQL                 →    RDS Aurora  (Multi-AZ, read replicas)
+
+Manual "Settle" button (webhook sim)→    Real DriveWealth webhook
+         POST /settle/{id}               POST /webhook/settlement
+                                         → API Gateway → Settlement Lambda
+```
+
+---
+
+### Full Production Architecture
+
+```
+                    ┌──────────────────────────┐
+                    │   AWS EventBridge         │
+                    │   cron(0 0 * * ? *)       │  ← replaces the CRON button
+                    └────────────┬─────────────┘
+                                 │ triggers nightly
+                                 ▼
+Client → ALB → API Gateway → ┌──────────────────────┐
+          (rate limiting,     │  FastAPI              │
+           auth, routing)     │  (ECS Fargate)        │
+                              │                       │
+                              │  • Schedule CRUD      │
+                              │  • Duplicate guard    │
+                              │  • Notification reads │
+                              └──────────┬───────────┘
+                                         │ push messages
+                                         ▼
+                              ┌──────────────────────┐
+                              │  AWS SQS              │  ← replaces Upstash Redis
+                              │  deposit-queue        │
+                              │  settlement-queue     │
+                              └──────────┬───────────┘
+                                         │ triggers (1 message : 1 invocation)
+                                         ▼
+                              ┌──────────────────────┐
+                              │  Processing Lambda    │  ← replaces Celery worker
+                              │  (auto-scales to      │
+                              │   queue depth)        │
+                              │                       │
+                              │  • Calls DriveWealth  │
+                              │  • Writes transactions│
+                              │  • Updates balance    │
+                              │  • Creates notifs     │
+                              │  • Fires SES email    │
+                              └──────────┬───────────┘
+                                         │ reads + writes
+                                         ▼
+                              ┌──────────────────────┐
+                              │  RDS Aurora           │  ← replaces Supabase
+                              │  (Multi-AZ,           │
+                              │   read replicas)      │
+                              └──────────────────────┘
+```
+
+---
+
+### Additional Production Concerns
+
+**CQRS (Read/Write Split)**
+Currently one FastAPI service handles both writes (create schedule, enqueue) and reads (ledger, balance). At scale these split:
+- **Write service** — accepts new schedules, enqueues tasks. Optimized for throughput.
+- **Read service** — serves the ledger and balance. Backed by a read replica, optimized for low latency.
+
+**Idempotency at Lambda Scale**
+The idempotency key (`{deposit_id}:{next_run_date}`) becomes even more critical with Lambda because SQS has *at-least-once* delivery — a message can be delivered more than once if the Lambda times out mid-execution. The `UNIQUE` constraint on `idempotency_key` is the last line of defense against double-charging.
+
+**Email Notifications**
+The `Notification` DB record is the hook point. In production the Processing Lambda calls SendGrid or AWS SES at the same moment it writes the notification row — so the email and the audit trail are always in sync.
+
+**Authentication**
+This POC hardcodes `user_id = "demo_user"`. Production would add JWT-based auth (e.g. via AWS Cognito) at the API Gateway layer, scoping all queries to the authenticated user's accounts.
 
 ---
 
