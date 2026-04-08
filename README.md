@@ -135,7 +135,7 @@ User clicks "Settle" on a Pending transaction → POST /settle/{transaction_id}
                                  ├─ UPDATE recurring_deposits.active = False  ← pauses schedule
                                  └─ INSERT notifications (message, account_id, read=false)
 ```
-
+This is the manual "2-3 day" verfication that emulates the banking verification. The balance will not be added until the transaction successfully transfers. 
 **Why pause the schedule on failure?** A failed settlement usually means something is wrong — insufficient funds, a compliance hold, an expired bank link. Auto-retrying would likely fail again and could violate regulations. The correct pattern is to pause, notify the user, and require manual reactivation.
 
 ---
