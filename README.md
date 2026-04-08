@@ -6,49 +6,48 @@ A proof-of-concept Fintech application demonstrating a distributed, event-driven
 
 ## System Architecture
 
+### POC (Current)
+
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT BROWSER                                  │
-│  Vanilla HTML/JS + Tailwind CSS (served by FastAPI via Jinja2 templates)    │
-│  Polls /transactions and /notifications every 4 seconds for live updates    │
-└───────────────────────────────┬─────────────────────────────────────────────┘
-                                │ HTTP (JSON REST)
-                                ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         FastAPI  —  Render Web Service                       │
-│                                                                               │
-│  Responsibilities:                                                            │
-│  • Serve the dashboard HTML (GET /)                                          │
-│  • CRUD for Accounts, Recurring Deposits, Notifications                      │
-│  • Validate requests & enforce business rules (no duplicate schedules)        │
-│  • Enqueue Celery tasks — does NOT process deposits itself                   │
-│  • Read-only DB queries for the UI (transactions, balances)                  │
-└──────────┬────────────────────────────────────┬──────────────────────────────┘
-           │ SQLAlchemy (reads + enqueue signal) │ .delay() — pushes task message
-           │                                     ▼
-           │                    ┌────────────────────────────┐
-           │                    │   Upstash Redis (TLS)       │
-           │                    │   Serverless Message Queue  │
-           │                    │                             │
-           │                    │  Queue: process_deposit     │
-           │                    │  Queue: settle_transaction  │
-           │                    └──────────────┬─────────────┘
-           │                                   │ Celery dequeues task
-           │                                   ▼
-           │                    ┌────────────────────────────┐
-           │                    │  Celery Worker             │
-           │                    │  Render Background Worker  │
-           │                    │                            │
-           │                    │  • Calls mock DriveWealth  │
-           │                    │  • Writes to PostgreSQL    │
-           │                    │  • Retries on failure (3x) │
-           │                    └──────────────┬─────────────┘
-           │                                   │ SQLAlchemy (writes)
-           ▼                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    PostgreSQL  —  Supabase                                   │
-│   accounts · recurring_deposits · transactions · notifications               │
-└─────────────────────────────────────────────────────────────────────────────┘
+  Manual CRON Trigger                                     ┌──────────────────────────┐
+  "Simulate CRON" Button                                   │                          │
+  POST /trigger-run                                        │  Database                │
+         │                                                 │  PostgreSQL (Supabase)   │
+         ▼                                                 │                          │
+  Celery Worker ────────────── reads recurring_deposits ──►│                          │
+  (Initiation)                                             │                          │
+         │                                                 │                          │
+         ▼                                                 │                          │
+  Upstash Redis                                            │                          │
+  (Message Queue)                                          │                          │
+         │                                                 │                          │
+         ▼                                                 │                          │
+  Celery Worker ────── writes transactions/accounts/notifs►│                          │
+  (Processing)                                             │                          │
+                                                           │                          │
+  Client → Load Balancer → FastAPI ──── reads/writes ─────►│                          │
+            (Round Robin)   (Render)                       │                          │
+                            (Rate Limiter)                 └──────────────────────────┘
+```
+
+### Production (AWS)
+
+```
+  EventBridge                                              ┌──────────────────────────┐
+  cron(0 0 * * ? *)                                        │                          │
+         │                                                 │  Database                │
+         ▼                                                 │  PostgreSQL (RDS Aurora) │
+  Initiation Lambda ───── reads recurring_deposits ───────►│                          │
+         │                                                 │                          │
+         ▼                                                 │                          │
+      AWS SQS                                              │                          │
+         │                                                 │                          │
+         ▼                                                 │                          │
+  Processing Lambda ── writes transactions/accounts/notifs►│                          │
+                                                           │                          │
+  Client → Load Balancer → API Gateway → FastAPI ─ reads/writes ►│                   │
+            (Round Robin)   (Auth,        (Rate                   │                   │
+                             Routing)      Limiter)               └───────────────────┘
 ```
 
 ### Component Responsibilities
@@ -279,52 +278,6 @@ Manual "Settle" button (webhook sim)→    Real DriveWealth webhook
 
 ---
 
-### Full Production Architecture
-
-```
-                    ┌──────────────────────────┐
-                    │   AWS EventBridge         │
-                    │   cron(0 0 * * ? *)       │  ← replaces the CRON button
-                    └────────────┬─────────────┘
-                                 │ triggers nightly
-                                 ▼
-Client → ALB → API Gateway → ┌──────────────────────┐
-          (rate limiting,     │  FastAPI              │
-           auth, routing)     │  (ECS Fargate)        │
-                              │                       │
-                              │  • Schedule CRUD      │
-                              │  • Duplicate guard    │
-                              │  • Notification reads │
-                              └──────────┬───────────┘
-                                         │ push messages
-                                         ▼
-                              ┌──────────────────────┐
-                              │  AWS SQS              │  ← replaces Upstash Redis
-                              │  deposit-queue        │
-                              │  settlement-queue     │
-                              └──────────┬───────────┘
-                                         │ triggers (1 message : 1 invocation)
-                                         ▼
-                              ┌──────────────────────┐
-                              │  Processing Lambda    │  ← replaces Celery worker
-                              │  (auto-scales to      │
-                              │   queue depth)        │
-                              │                       │
-                              │  • Calls DriveWealth  │
-                              │  • Writes transactions│
-                              │  • Updates balance    │
-                              │  • Creates notifs     │
-                              │  • Fires SES email    │
-                              └──────────┬───────────┘
-                                         │ reads + writes
-                                         ▼
-                              ┌──────────────────────┐
-                              │  RDS Aurora           │  ← replaces Supabase
-                              │  (Multi-AZ,           │
-                              │   read replicas)      │
-                              └──────────────────────┘
-```
-
 ---
 
 ### Additional Production Concerns
@@ -335,7 +288,7 @@ Currently one FastAPI service handles both writes (create schedule, enqueue) and
 - **Read service** — serves the ledger and balance. Backed by a read replica, optimized for low latency.
 
 **Idempotency at Lambda Scale**
-The idempotency key (`{deposit_id}:{next_run_date}`) becomes even more critical with Lambda because SQS has *at-least-once* delivery — a message can be delivered more than once if the Lambda times out mid-execution. The `UNIQUE` constraint on `idempotency_key` is the last line of defense against double-charging.
+The idempotency key (`{recurring_deposit_id}:{next_run_date}`) becomes even more critical with Lambda because SQS has *at-least-once* delivery — a message can be delivered more than once if the Lambda times out mid-execution. The `UNIQUE` constraint on `idempotency_key` is the last line of defense against double-charging.
 
 **Email Notifications**
 The `Notification` DB record is the hook point. In production the Processing Lambda calls SendGrid or AWS SES at the same moment it writes the notification row — so the email and the audit trail are always in sync.
