@@ -1,6 +1,6 @@
 # Recurring Deposit System
 
-A proof-of-concept Fintech application demonstrating a distributed, event-driven architecture for processing recurring deposits. The core goal is to show how a naive monolithic CRON job can be decoupled into a scalable **Message Queue + Worker** pattern.
+A proof-of-concept Fintech application demonstrating a distributed, event-driven architecture for processing recurring deposits. The core goal is to make deposits into investment accounts at some recurring frequency and to be able to see deposits for particular recurring deposit.
 
 ---
 
@@ -109,8 +109,6 @@ User clicks "Simulate CRON" → POST /trigger-run
 
 **Why the idempotency key matters:** If the worker crashes after inserting the transaction but before acknowledging the Redis message, the broker re-delivers the task. The constraint catches the retry and skips it cleanly — no double-charging.
 
-**Why enqueue instead of processing inline?** The API returns immediately to the UI. Workers process all deposits in parallel. If you have 10,000 due deposits, the API doesn't block for 10,000 sequential DB writes — it just pushes 10,000 messages and returns.
-
 ---
 
 ### Flow 3 — Settlement (Simulates DriveWealth Webhook)
@@ -135,7 +133,7 @@ User clicks "Settle" on a Pending transaction → POST /settle/{transaction_id}
                                  ├─ UPDATE recurring_deposits.active = False  ← pauses schedule
                                  └─ INSERT notifications (message, account_id, read=false)
 ```
-This is the manual "2-3 day" verfication that emulates the banking verification. The balance will not be added until the transaction successfully transfers. 
+This is the manual "2-3 day" verfication that emulates the banking verification. The balance will not be added until the transaction successfully transfers. In production, there would be logic from the "given" mechanisms talked about in the interview. 
 **Why pause the schedule on failure?** A failed settlement usually means something is wrong — insufficient funds, a compliance hold, an expired bank link. Auto-retrying would likely fail again and could violate regulations. The correct pattern is to pause, notify the user, and require manual reactivation.
 
 ---
@@ -151,7 +149,7 @@ Frontend polls GET /notifications/{account_id} every 4 seconds
        └─ User clicks ✓ → POST /notifications/{id}/read → read=true
 ```
 
-In production this would also fire a transactional email via **SendGrid or AWS SES** at the point of the `INSERT notifications` in the worker. The DB record is the audit trail; the email is the delivery mechanism.
+In production this would also fire a transactional email via **SendGrid or AWS SES** at the point of the `INSERT notifications` in the worker. The DB record is the audit trail; the email is the delivery mechanism. For now, the user is notified via the App (look at the notifications icon when a transaction fails).
 
 ---
 
@@ -228,7 +226,7 @@ One account has many schedules. Each schedule generates one transaction per CRON
 
 This POC maps directly onto a production AWS architecture. Every component has a 1:1 equivalent — the *pattern* is identical, only the infrastructure provider changes.
 
-### Celery vs Lambda — What's the Difference?
+### Celery vs Lambda
 
 | | Celery (this POC) | AWS Lambda (production) |
 |---|---|---|
@@ -273,20 +271,19 @@ Supabase PostgreSQL                 →    RDS Aurora  (Multi-AZ, read replicas)
 
 Manual "Settle" button (webhook sim)→    Real DriveWealth webhook
          POST /settle/{id}               POST /webhook/settlement
-                                         → API Gateway → Settlement Lambda
+                                         → API Gateway → SQS → Settlement Lambda (Seen in the LucidChart docs talked about in interview)
 ```
 
 ---
 
 ---
-
 ### Additional Production Concerns
 
 **CQRS (Read/Write Split)**
 Currently one FastAPI service handles both writes (create schedule, enqueue) and reads (ledger, balance). At scale these split:
 - **Write service** — accepts new schedules, enqueues tasks. Optimized for throughput.
 - **Read service** — serves the ledger and balance. Backed by a read replica, optimized for low latency.
-
+(This is what I was getting at in the interview, splitting up the recurring deposit creation and the view transaction services.) 
 **Idempotency at Lambda Scale**
 The idempotency key (`{recurring_deposit_id}:{next_run_date}`) becomes even more critical with Lambda because SQS has *at-least-once* delivery — a message can be delivered more than once if the Lambda times out mid-execution. The `UNIQUE` constraint on `idempotency_key` is the last line of defense against double-charging.
 
@@ -338,6 +335,7 @@ Open `http://localhost:8000` in your browser.
 | `CELERY_RESULT_BACKEND` | Same Redis URL (stores Celery task result metadata) |
 
 ---
+https://lucid.app/lucidchart/fe6f21a9-4766-4863-9e34-ca7271aff039/edit?invitationId=inv_e96b8802-08ef-4eb8-a15a-58ed2363f833&page=0_0#
 
 ## Deployment (Render)
 
