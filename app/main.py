@@ -34,6 +34,11 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
