@@ -296,6 +296,14 @@ The `Notification` DB record is the hook point. In production the Processing Lam
 **Authentication**
 This POC hardcodes `user_id = "demo_user"`. Production would add JWT-based auth (e.g. via AWS Cognito) at the API Gateway layer, scoping all queries to the authenticated user's accounts.
 
+**Immediate vs Scheduled First Deposit**
+Currently, creating a schedule sets `next_run_date = now()` but the first deposit only fires when the CRON runs at midnight — leaving the user with no feedback after submission. A future improvement would add a `start_immediately` flag to the `POST /deposits` request body:
+
+- `start_immediately: true` — API enqueues `process_deposit` directly after the `INSERT`, bypassing the CRON for the first run. `next_run_date` is set to `now + 1 interval` so the CRON doesn't also pick it up.
+- `start_immediately: false` (default) — `next_run_date` is set to `now + 1 interval` and the CRON handles the first run at midnight as normal.
+
+This is worth noting architecturally: it demonstrates that the CRON and the API are both valid **producers** to the same queue — workers don't care how a task arrived, only that it's there. The UI would expose this as a toggle: *"Make first deposit now"* vs *"Start on next scheduled run."*
+
 ---
 
 ## Local Development

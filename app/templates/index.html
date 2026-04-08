@@ -366,7 +366,7 @@
             <td class="px-6 py-4">
               <span class="capitalize text-white/60 text-xs font-medium px-2 py-1 rounded-lg" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2)">${d.frequency}</span>
             </td>
-            <td class="px-6 py-4 text-white/50 text-xs">${fmtDate(d.next_run_date)}</td>
+            <td class="px-6 py-4 text-white/50 text-xs">${fmtDateOnly(d.next_run_date)}</td>
             <td class="px-6 py-4">
               ${d.active
                 ? '<span class="badge-success text-xs px-2 py-1 rounded-lg font-medium">Active</span>'
@@ -485,8 +485,7 @@
         tbody.innerHTML = depositIds.map(depId => {
           const depTxns  = groups[depId];
           const deposit  = allDeposits.find(d => d.id === depId);
-          const created  = deposit ? ` · created ${fmtDate(deposit.created_at)}` : '';
-          const label    = deposit ? `${fmt$(deposit.amount)} · ${capitalize(deposit.frequency)}${created}` : `ID …${depId.slice(-6)}`;
+          const label    = deposit ? `${fmt$(deposit.amount)} · ${capitalize(deposit.frequency)}` : `ID …${depId.slice(-6)}`;
           const latest   = depTxns[0];   // already sorted desc by created_at
           const isOpen   = openGroups.has(depId);
 
@@ -497,7 +496,7 @@
               <td class="px-4 py-3">
                 <span class="badge-${t.status.toLowerCase()} text-xs px-2 py-1 rounded-lg font-medium">${t.status}</span>
               </td>
-              <td class="px-4 py-3 text-white/40 text-xs">${fmtDate(t.created_at)}</td>
+              <td class="px-4 py-3 text-white/40 text-xs">${fmtDateOnly(t.created_at)}</td>
               <td class="px-4 py-3">
                 ${t.status === 'Pending'
                   ? `<button onclick="simulateWebhook('${t.id}')" class="text-xs font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1">
@@ -633,6 +632,7 @@
     // -----------------------------------------------------------------------
     function fmt$(v) { return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(v); }
     function fmtDate(iso) { return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+    function fmtDateOnly(iso) { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
     function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
     function showToast(message, type='info') {
