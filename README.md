@@ -301,6 +301,8 @@ Currently, creating a schedule sets `next_run_date = now()` but the first deposi
 
 This is worth noting architecturally: it demonstrates that the CRON and the API are both valid **producers** to the same queue — workers don't care how a task arrived, only that it's there. The UI would expose this as a toggle: *"Make first deposit now"* vs *"Start on next scheduled run."*
 
+**Frontend is based on Alinea's Color and App Style**
+
 ---
 
 ## Local Development
